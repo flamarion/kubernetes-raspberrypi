@@ -107,9 +107,22 @@ curl https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/ca
 kubectl apply -f calico.yaml
 ```
 
+Make sure to configure the config to access the cluster
+
 ## Join the nodes (Nodes only)
 
 After bootstrap the cluster, follow the instructions to join the nodes to the cluster.
+
+## Check if the nodes are ready ( Control Plane only)
+
+```
+kubectl get nodes -o wide
+NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+rbp1   Ready    control-plane   31m   v1.26.3   192.168.10.12   <none>        Ubuntu 22.04.2 LTS   5.15.0-1026-raspi   containerd://1.7.0
+rbp2   Ready    <none>          30m   v1.26.3   192.168.10.13   <none>        Ubuntu 22.04.2 LTS   5.15.0-1026-raspi   containerd://1.7.0
+rbp3   Ready    <none>          30m   v1.26.3   192.168.10.14   <none>        Ubuntu 22.04.2 LTS   5.15.0-1026-raspi   containerd://1.7.0
+rbp4   Ready    <none>          30m   v1.26.3   192.168.10.15   <none>        Ubuntu 22.04.2 LTS   5.15.0-1026-raspi   containerd://1.7.0
+```
 
 # Extra configuration
 
