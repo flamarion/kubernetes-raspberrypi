@@ -1,14 +1,19 @@
-## Bootstrap K8S cluster
+# K8S on Raspberry PI 4b (4GB)
 
+## Install Packages (Both nodes)
+
+```
 sudo apt-get update
 
 sudo apt-get install -y ca-certificates curl apt-transport-https
+```
 
-# Containerd
+## Install Containerd (Both nodes)
 
-wget https://github.com/containerd/containerd/releases/download/v1.6.14/containerd-1.6.14-linux-amd64.tar.gz
+```
+wget https://github.com/containerd/containerd/releases/download/v1.7.0/containerd-1.7.0-linux-arm64.tar.gz
 
-sudo tar Cxzvf /usr/local containerd-1.6.14-linux-amd64.tar.gz
+sudo tar Cxzvf /usr/local containerd-1.7.0-linux-arm64.tar.gz
 
 wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service 
 
@@ -22,29 +27,32 @@ containerd config default | sudo tee /etc/containerd/config.toml
 
 sudo sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
 
-# sudo sed -i 's/sandbox_image \=.*/sandbox_image = \"registry.k8s.io/pause:3.2\"/g' /etc/containerd/config.toml
-
 sudo systemctl daemon-reload
 
 sudo systemctl enable --now containerd
+```
 
-# runc
+## Install runc (Both nodes)
 
-wget https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64
+```
+wget https://github.com/opencontainers/runc/releases/download/v1.1.5/runc.arm64
 
-sudo install -m 755 runc.amd64 /usr/local/sbin/runc
+sudo install -m 755 runc.arm64 /usr/local/sbin/runc
+```
 
-# CNI plugins
+## Install CNI plugins (Both nodes)
 
-wget https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-linux-amd64-v1.1.1.tgz
+```
+wget https://github.com/containernetworking/plugins/releases/download/v1.2.0/cni-plugins-linux-arm64-v1.2.0.tgz
 
 sudo mkdir -p /opt/cni/bin 
 
-sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.1.1.tgz
+sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-arm64-v1.2.0.tgz
+```
 
-# Kubelet, Kubectl, Kubeadm
+## Install Kubelet, Kubectl, Kubeadm (Both nodes)
 
-## Both nodes
+```
 sudo curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
 
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -55,7 +63,12 @@ sudo apt-mark hold kubelet kubeadm kubectl
 
 kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
 kubeadm completion bash | sudo tee /etc/bash_completion.d/kubeadm > /dev/null
+```
 
+
+## Persists some required system values (Both nodes)
+
+```
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
 overlay
 br_netfilter
@@ -64,35 +77,45 @@ EOF
 sudo modprobe overlay
 sudo modprobe br_netfilter
 
-# sysctl params required by setup, params persist across reboots
 cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
 net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
 EOF
 
-# Apply sysctl params without reboot
+# Apply without reboot
 sudo sysctl --system
+```
 
-# Become root and install the cluster
+
+
+## Boostrap Cluster ( Control Plane only)
+
+```
 sudo -i
-
-## Control plane
-kubeadm init --pod-network-cidr=10.10.0.0/16  --service-cidr=10.96.0.0/12 --apiserver-cert-extra-sans controller.flama-aws.wandb.ml
+# Define the pod network and the service network as you wish
+kubeadm init --pod-network-cidr=10.20.0.0/16  --service-cidr=10.0.0.0/12 --apiserver-cert-extra-sans controller.k8s.local
+# Optional if you want to schedule pods on Control nodes
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+```
 
-## Follow the instructions for the worker node
+## CNI - Install calico ( Control Plane only)
 
+```
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/calico.yaml -O
+# fix the CALICO_IPV4POOL_CIDR with the pod network defined when bootstraped the cluster
+kubectl apply -f calico.yaml
+```
 
-## CNI - Install calico
+## Join the nodes (Nodes only)
 
-`curl https://raw.githubusercontent.com/projectcalico/calico/v3.24.5/manifests/calico.yaml -O`
+After bootstrap the cluster, follow the instructions to join the nodes to the cluster.
 
-fix the `CALICO_IPV4POOL_CIDR` with the `10.10.0.0/16`
+# Extra configuration
 
-`kubectl apply -f calico.yaml`
+This is something that I maybe documet on RBP K8S cluster, but it's working on my old Intel Cluster + Edgerouter SPx
 
-### Configure GBP
+<!-- ### Configure GBP
 
 calico-bgp.yaml
 
@@ -259,4 +282,4 @@ helm upgrade ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ing
 
 
 ## Install Prometheus
-
+ -->
